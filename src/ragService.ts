@@ -277,7 +277,7 @@ ${code}`;
             
             console.log('缓存未命中');
             
-            // 始终返回示例漏洞
+            // 示例模式
             if (this.useExampleMode) {
                 console.log('使用示例模式');
                 const results = this.getExampleVulnerability(language);
@@ -285,7 +285,7 @@ ${code}`;
                 return results;
             }
             
-            // 如果不使用示例模式，则使用向量检索方式
+            // 使用向量检索方式
             console.log('使用向量检索');
             
             // 1. 获取代码功能描述
@@ -310,11 +310,20 @@ ${code}`;
                 return results;
             }
             
+            // 保存原始漏洞信息，用于后续翻译
+            const originalVulnerabilities = [...vulnerabilities];
+            
             // 4. 使用LLM进一步处理结果，传入选中的代码
             const results = await this.enhanceVulnerabilityResults(vulnerabilities, code);
             
             // 将结果存入缓存
             this.cacheResult(code, language, results);
+            
+            // 如果是增强后的结果（只有审计要点），则返回原始漏洞信息以便翻译
+            if (results.length === 1 && results[0].auditPoints) {
+                // 将原始漏洞信息附加到结果中，但不显示在UI上
+                results[0].originalVulnerabilities = originalVulnerabilities;
+            }
             
             return results;
         } catch (error) {
@@ -416,5 +425,41 @@ ${selectedCode}
                 similarityScore: 0.75
             }
         ];
+    }
+
+    /**
+     * 翻译漏洞的功能描述和关键概念
+     * @param vulnerabilities 原始漏洞结果
+     * @returns 翻译后的结果
+     */
+    public async translateVulnerabilityInfo(vulnerabilities: any[]): Promise<string> {
+        try {
+            console.log('开始翻译漏洞信息...');
+            
+            // 准备所有漏洞的功能描述和关键概念
+            const vulnDescriptions = vulnerabilities.map((vuln, index) => {
+                const functionality = vuln.description || '';
+                const keyConcept = vuln.keyConcept || '';
+                return `漏洞${index + 1}:
+功能描述(Functionality): ${functionality}
+关键概念(KeyConcept): ${keyConcept}`;
+            }).join('\n\n');
+            
+            // 构建翻译提示词
+            const prompt = `将以下漏洞的功能描述和关键概念翻译成中文：
+
+${vulnDescriptions}
+
+优化下翻译后的结构，输出优化结构后的翻译结果。`;
+            
+            console.log('发送翻译请求...');
+            const translatedText = await this.commonAsk(prompt);
+            console.log('翻译完成');
+            
+            return translatedText;
+        } catch (error) {
+            console.error('翻译漏洞信息失败:', error);
+            return '翻译失败，请稍后再试';
+        }
     }
 }
