@@ -1,12 +1,16 @@
 import * as vscode from 'vscode';
 import { RagService } from './ragService';
 import { VulnerabilityPanel } from './vulnerabilityPanel';
+import { ConfigManager } from './configManager';
 
 let vulnerabilityPanel: VulnerabilityPanel | undefined;
-const ragService = new RagService();
+let ragService: RagService;
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('代码漏洞检测器已激活');
+
+    // 初始化RAG服务
+    ragService = new RagService();
 
     // 注册打开漏洞分析面板的命令
     const openPanelCommand = vscode.commands.registerCommand('vulnerability-detector.openVulnerabilityPanel', () => {
@@ -14,6 +18,13 @@ export function activate(context: vscode.ExtensionContext) {
             vulnerabilityPanel = new VulnerabilityPanel(context.extensionUri, ragService);
         }
         vulnerabilityPanel.reveal();
+    });
+
+    // 注册配置命令
+    const openConfigCommand = vscode.commands.registerCommand('vulnerability-detector.openConfiguration', async () => {
+        await ConfigManager.showConfigurationUI();
+        // 更新RAG服务配置
+        ragService.updateConfig(ConfigManager.getConfig());
     });
 
     // 注册右键菜单命令：分析选中的代码
@@ -75,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
     }
 
-    context.subscriptions.push(openPanelCommand, analyzeSelectionCommand);
+    context.subscriptions.push(openPanelCommand, analyzeSelectionCommand, openConfigCommand);
 }
 
 export function deactivate() {

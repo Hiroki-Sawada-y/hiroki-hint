@@ -42,6 +42,10 @@
       {
         "command": "vulnerability-analyzer.analyzeSelectedCode",
         "title": "分析此段代码的checklist"
+      },
+      {
+        "command": "vulnerability-detector.openConfiguration",
+        "title": "配置代码审计助手API密钥"
       }
     ],
     "menus": {
@@ -59,7 +63,37 @@
         "key": "ctrl+shift+v",
         "mac": "cmd+shift+v"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "代码审计助手",
+      "properties": {
+        "codeAuditHinter.openaiApiBase": {
+          "type": "string",
+          "default": "4.0.wokaai.com",
+          "description": "OpenAI API 基础URL"
+        },
+        "codeAuditHinter.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API 密钥"
+        },
+        "codeAuditHinter.pineconeApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Pinecone API 密钥"
+        },
+        "codeAuditHinter.pineconeHost": {
+          "type": "string",
+          "default": "",
+          "description": "Pinecone 主机地址"
+        },
+        "codeAuditHinter.pineconeNamespace": {
+          "type": "string",
+          "default": "vulns_high",
+          "description": "Pinecone 命名空间"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -81,6 +115,7 @@
   "author": "",
   "dependencies": {
     "axios": "^1.8.1",
+    "dotenv": "^16.4.7",
     "vsce": "^2.15.0"
   }
 }

@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import axios from 'axios';
+import { ConfigManager, ApiConfig } from './configManager';
 
 interface Metadata {
     [key: string]: any;
@@ -18,9 +19,28 @@ export class RagService {
     private cache: Map<string, { results: any[], timestamp: number }> = new Map(); // 明确缓存值类型
     private cacheMaxSize: number = 50; // 缓存最大条目数
     private cacheTimeout: number = 30 * 60 * 1000; // 缓存超时时间（30分钟）
+    private config: ApiConfig;
 
     constructor() {
+        // 获取配置
+        this.config = ConfigManager.getConfig();
+        
+        // 设置环境变量
+        process.env.OPENAI_API_BASE = this.config.openaiApiBase;
+        process.env.OPENAI_API_KEY = this.config.openaiApiKey;
+        
         console.log('RAG服务已初始化，使用实际漏洞检测模式');
+    }
+
+    // 更新配置
+    public updateConfig(newConfig: ApiConfig): void {
+        this.config = newConfig;
+        
+        // 更新环境变量
+        process.env.OPENAI_API_BASE = this.config.openaiApiBase;
+        process.env.OPENAI_API_KEY = this.config.openaiApiKey;
+        
+        console.log('RAG服务配置已更新');
     }
 
     // 切换示例模式
@@ -202,11 +222,10 @@ ${code}`;
      */
     private async queryPinecone(embedding: number[], topK: number = 10): Promise<any[]> {
         try {
-            // 使用提供的 Pinecone 信息
-            const pineconeApiKey = "pcsk_7USFmg_PGvHJanFiMm6rJi3QLzLV2uk95rNh64pSBEZvMSZUmtRXX6joajxRxrTnw8egcD";
-            const pineconeHost = "soloditvuls-5d34b50.svc.aped-4627-b74a.pinecone.io";
-            const pineconeIndexName = "soloditvuls";
-            const pineconeNamespace = "vulns_high";
+            // 使用配置中的 Pinecone 信息
+            const pineconeApiKey = this.config.pineconeApiKey;
+            const pineconeHost = this.config.pineconeHost;
+            const pineconeNamespace = this.config.pineconeNamespace;
             
             console.log(`正在查询Pinecone (${pineconeHost})...`);
             // 使用axios直接调用Pinecone API
