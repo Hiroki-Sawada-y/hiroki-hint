@@ -2,6 +2,19 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ConfigManager = void 0;
 const vscode = require("vscode");
+const fs = require("fs");
+const path = require("path");
+const dotenv = require("dotenv");
+// 尝试加载.env文件
+try {
+    const envPath = path.join(__dirname, '..', '.env');
+    if (fs.existsSync(envPath)) {
+        dotenv.config({ path: envPath });
+    }
+}
+catch (error) {
+    console.error('加载.env文件失败:', error);
+}
 class ConfigManager {
     // 获取配置
     static getConfig() {
@@ -21,6 +34,53 @@ class ConfigManager {
             if (value !== undefined) {
                 await config.update(key, value, vscode.ConfigurationTarget.Global);
             }
+        }
+    }
+    // 保存敏感配置到.env文件
+    static async saveToEnvFile(config) {
+        try {
+            const envPath = path.join(__dirname, '..', '.env');
+            let envContent = '';
+            // 如果文件存在，先读取现有内容
+            if (fs.existsSync(envPath)) {
+                envContent = fs.readFileSync(envPath, 'utf8');
+            }
+            // 更新环境变量
+            if (config.openaiApiBase) {
+                envContent = this.updateEnvVariable(envContent, 'DEFAULT_OPENAI_API_BASE', config.openaiApiBase);
+            }
+            if (config.openaiApiKey) {
+                envContent = this.updateEnvVariable(envContent, 'DEFAULT_OPENAI_API_KEY', config.openaiApiKey);
+            }
+            if (config.pineconeApiKey) {
+                envContent = this.updateEnvVariable(envContent, 'DEFAULT_PINECONE_API_KEY', config.pineconeApiKey);
+            }
+            if (config.pineconeHost) {
+                envContent = this.updateEnvVariable(envContent, 'DEFAULT_PINECONE_HOST', config.pineconeHost);
+            }
+            if (config.pineconeNamespace) {
+                envContent = this.updateEnvVariable(envContent, 'DEFAULT_PINECONE_NAMESPACE', config.pineconeNamespace);
+            }
+            // 写入文件
+            fs.writeFileSync(envPath, envContent);
+            console.log('.env文件已更新');
+        }
+        catch (error) {
+            console.error('保存.env文件失败:', error);
+            throw error;
+        }
+    }
+    // 更新环境变量
+    static updateEnvVariable(content, key, value) {
+        const regex = new RegExp(`^${key}=.*`, 'm');
+        const newLine = `${key}=${value}`;
+        if (regex.test(content)) {
+            // 更新现有变量
+            return content.replace(regex, newLine);
+        }
+        else {
+            // 添加新变量
+            return content + (content.endsWith('\n') ? '' : '\n') + newLine + '\n';
         }
     }
     // 打开配置界面
@@ -67,6 +127,11 @@ class ConfigManager {
             openaiApiBase,
             openaiApiKey
         });
+        // 保存到.env文件
+        await this.saveToEnvFile({
+            openaiApiBase,
+            openaiApiKey
+        });
         // 设置环境变量
         process.env.OPENAI_API_BASE = openaiApiBase;
         process.env.OPENAI_API_KEY = openaiApiKey;
@@ -76,10 +141,10 @@ class ConfigManager {
 exports.ConfigManager = ConfigManager;
 ConfigManager.CONFIG_SECTION = 'codeAuditHinter';
 ConfigManager.DEFAULT_CONFIG = {
-    openaiApiBase: '4.0.wokaai.com',
-    openaiApiKey: 'sk-ThdennMumCFb63OCJT45vAYSfcV5qmjjIbGlXEDndEzrq9lc',
-    pineconeApiKey: 'pcsk_7USFmg_PGvHJanFiMm6rJi3QLzLV2uk95rNh64pSBEZvMSZUmtRXX6joajxRxrTnw8egcD',
-    pineconeHost: 'soloditvuls-5d34b50.svc.aped-4627-b74a.pinecone.io',
-    pineconeNamespace: 'vulns_high'
+    openaiApiBase: process.env.DEFAULT_OPENAI_API_BASE || '4.0.wokaai.com',
+    openaiApiKey: process.env.DEFAULT_OPENAI_API_KEY || '',
+    pineconeApiKey: process.env.DEFAULT_PINECONE_API_KEY || '',
+    pineconeHost: process.env.DEFAULT_PINECONE_HOST || '',
+    pineconeNamespace: process.env.DEFAULT_PINECONE_NAMESPACE || 'vulns_high'
 };
 //# sourceMappingURL=configManager.js.map

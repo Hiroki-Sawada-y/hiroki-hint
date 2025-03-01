@@ -2,7 +2,7 @@
   "name": "vscode-rag-vulnerability-hinter",
   "displayName": "code audit hinter",
   "description": "hinter for your audit",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "publisher": "BradMoonUESTC",
   "repository": {
     "type": "git",
