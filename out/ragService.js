@@ -20,6 +20,7 @@ class RagService {
         process.env.OPENAI_API_BASE = this.config.openaiApiBase;
         process.env.OPENAI_API_KEY = this.config.openaiApiKey;
         console.log('RAG服务已初始化，使用实际漏洞检测模式');
+        console.log('当前配置:', this.config);
     }
     // 更新配置
     updateConfig(newConfig) {
@@ -28,6 +29,7 @@ class RagService {
         process.env.OPENAI_API_BASE = this.config.openaiApiBase;
         process.env.OPENAI_API_KEY = this.config.openaiApiKey;
         console.log('RAG服务配置已更新');
+        console.log('当前配置:', this.config);
     }
     // 切换示例模式
     toggleExampleMode(useExample) {
@@ -419,6 +421,108 @@ ${vulnDescriptions}
         catch (error) {
             console.error('翻译漏洞信息失败:', error);
             return '翻译失败，请稍后再试';
+        }
+    }
+    /**
+     * 生成测试用例
+     * @param code 要生成测试用例的代码段
+     * @param language 代码语言
+     * @returns 生成的测试用例
+     */
+    async generateTestCases(code, language) {
+        try {
+            console.log('开始生成测试用例...');
+            console.log('代码语言:', language);
+            // 1. 获取代码功能描述
+            const functionality = await this.getFunctionalityFromCode(code);
+            console.log('提取的功能描述:', functionality);
+            // 2. 将功能描述转换为嵌入向量
+            const embedding = await this.generateEmbedding(functionality);
+            if (embedding.length === 0) {
+                console.error('生成嵌入向量失败');
+                return '无法生成测试用例：生成嵌入向量失败';
+            }
+            console.log('嵌入向量生成成功，长度:', embedding.length);
+            // 3. 使用嵌入向量查询Pinecone获取相似案例
+            // 记录原始和修改后的host
+            const originalHost = this.config.pineconeHost;
+            console.log('原始 Pinecone Host:', originalHost);
+            const testCaseHost = this.config.pineconeHost.replace('vulns', 'testcases');
+            console.log('测试用例 Pinecone Host:', testCaseHost);
+            this.config.pineconeHost = testCaseHost;
+            console.log('开始查询相似测试用例...');
+            const similarCases = await this.queryPinecone(embedding, 5);
+            console.log('找到相似测试用例数量:', similarCases.length);
+            // 恢复原始host
+            this.config.pineconeHost = originalHost;
+            if (similarCases.length === 0) {
+                console.log('未找到相关的测试用例参考');
+                return '未找到相关的测试用例参考';
+            }
+            // 4. 构建生成测试用例的prompt
+            const casesInfo = similarCases.map((item) => {
+                return `
+功能描述: ${item.description}
+测试用例: ${item.codeExample || '无示例'}
+关键概念: ${item.keyConcept || '无'}`;
+            }).join('\n\n');
+            console.log('开始生成测试用例prompt...');
+            const prompt = `请基于以下信息为代码生成全面的测试用例。请严格遵循"使用知识"部分提供的测试案例模式，不要自行决定测试场景：
+
+## 待测试代码
+\`\`\`${language}
+${code}
+\`\`\`
+
+## 代码功能描述
+${functionality}
+
+## 使用知识
+${casesInfo}
+
+请使用 Foundry 测试框架生成测试用例，并遵循以下要求：
+1. 严格基于"使用知识"中的测试案例模式设计测试
+2. 每个测试用例都需要明确说明：
+   - Precondition（前置条件）：测试执行前必须满足的条件
+   - Postcondition（后置条件）：测试执行后必须满足的条件
+   - Invariant（不变量）：整个测试过程中保持不变的条件
+3. 使用 Foundry 的特定功能，如 setUp、test、assertEq 等
+4. 包含详细的中文注释说明测试目的和步骤
+5. 确保测试数据的完整性和可执行性
+
+请按以下格式输出：
+
+## 测试用例代码
+\`\`\`${language}
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import "forge-std/Test.sol";
+import "../src/YourContract.sol";
+
+contract YourContractTest is Test {
+    // 测试用例实现
+    ...
+}
+\`\`\`
+
+## 测试用例解释
+请详细解释每个测试用例的：
+1. 测试目的
+2. Precondition（前置条件）
+3. Postcondition（后置条件）
+4. Invariant（不变量）
+5. 测试步骤说明
+6. 预期结果及其验证方式`;
+            console.log('开始调用LLM生成测试用例...');
+            console.log('prompt:', prompt);
+            const testCases = await this.commonAsk(prompt);
+            console.log('测试用例生成完成，长度:', testCases.length);
+            return testCases;
+        }
+        catch (error) {
+            console.error('生成测试用例失败:', error);
+            return '生成测试用例失败，请稍后重试';
         }
     }
 }

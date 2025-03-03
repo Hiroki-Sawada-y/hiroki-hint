@@ -86,7 +86,32 @@ export function activate(context: vscode.ExtensionContext) {
         );
     }
 
-    context.subscriptions.push(openPanelCommand, analyzeSelectionCommand, openConfigCommand);
+    // 注册生成测试用例的命令
+    const generateTestCommand = vscode.commands.registerCommand('vulnerability-detector.generateTestCase', () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            vscode.window.showErrorMessage('没有打开的编辑器');
+            return;
+        }
+
+        const selection = editor.selection;
+        if (selection.isEmpty) {
+            vscode.window.showErrorMessage('请先选择一段代码');
+            return;
+        }
+
+        const selectedText = editor.document.getText(selection);
+        const language = editor.document.languageId;
+
+        // 打开面板并生成测试用例
+        if (!vulnerabilityPanel) {
+            vulnerabilityPanel = new VulnerabilityPanel(context.extensionUri, ragService);
+        }
+        vulnerabilityPanel.reveal();
+        vulnerabilityPanel.generateTestCases(selectedText, language);
+    });
+
+    context.subscriptions.push(openPanelCommand, analyzeSelectionCommand, openConfigCommand, generateTestCommand);
 }
 
 export function deactivate() {

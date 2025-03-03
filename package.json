@@ -1,8 +1,8 @@
 {
   "name": "vscode-rag-vulnerability-hinter",
-  "displayName": "code audit hinter",
-  "description": "hinter for your audit",
-  "version": "0.1.4",
+  "displayName": "Code Audit Hinter",
+  "description": "hinter for your audit and development",
+  "version": "0.1.5",
   "publisher": "BradMoonUESTC",
   "repository": {
     "type": "git",
@@ -46,6 +46,10 @@
       {
         "command": "vulnerability-detector.openConfiguration",
         "title": "配置代码审计助手API密钥"
+      },
+      {
+        "command": "vulnerability-detector.generateTestCase",
+        "title": "生成测试用例"
       }
     ],
     "menus": {
@@ -53,6 +57,11 @@
         {
           "when": "editorHasSelection",
           "command": "vulnerability-analyzer.analyzeSelectedCode",
+          "group": "navigation"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "vulnerability-detector.generateTestCase",
           "group": "navigation"
         }
       ]
